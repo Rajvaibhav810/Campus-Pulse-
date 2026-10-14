@@ -1,39 +1,38 @@
 import React, { useState } from 'react';
 import { 
   Megaphone, Lock, Mail, User, Building, Shield, 
-  Users, Check, ArrowRight, Eye, EyeOff, AlertCircle, 
-  Droplets, Wifi, Sparkles, Building2, ShieldAlert, Globe
+  Users, Check, ArrowRight, Eye, EyeOff, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const DOMAIN_OPTIONS = [
-  { id: 'water', label: 'Water & Plumbing', icon: Droplets, color: '#0284c7', desc: 'Water coolers, leaks, restrooms, faucets, drainage' },
-  { id: 'wifi', label: 'IT & Wi-Fi Networks', icon: Wifi, color: '#2563eb', desc: 'Network access points, conference AV, server connectivity' },
-  { id: 'cleanliness', label: 'Cleanliness & Sanitation', icon: Sparkles, color: '#059669', desc: 'Waste management, restrooms, cafeteria hygiene, spills' },
-  { id: 'facilities', label: 'Facilities & HVAC', icon: Building2, color: '#d97706', desc: 'Air conditioning, lighting, elevators, power, furniture' },
-  { id: 'safety', label: 'Safety & Security', icon: ShieldAlert, color: '#dc2626', desc: 'Emergency exits, fire safety, access barriers, surveillance' },
-  { id: 'all', label: 'Super Administrator (All Domains)', icon: Globe, color: '#7c3aed', desc: 'Full authority across all organizational departments' }
-];
-
 export function AuthPage({ onAuthSuccess }) {
-  const { login, signup, users, organization } = useAuth();
+  const { login, signup, organization } = useAuth();
 
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Login form state
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+  // Selected role for Sign In: 'member' or 'admin'
+  const [loginRole, setLoginRole] = useState('member');
+  const [loginEmail, setLoginEmail] = useState('member@campus.internal');
+  const [loginPassword, setLoginPassword] = useState('password123');
 
   // Signup form state
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
-  const [signupOrg, setSignupOrg] = useState(organization.name);
+  const [signupOrg, setSignupOrg] = useState(organization?.name || 'Acme Corp');
   const [signupDept, setSignupDept] = useState('');
-  const [selectedRole, setSelectedRole] = useState('user'); // 'user' | 'admin'
-  const [selectedDomain, setSelectedDomain] = useState('water'); // for domain admins
+  const [signupRole, setSignupRole] = useState('member'); // 'member' | 'admin'
+
+  const handleRoleToggle = (role) => {
+    setLoginRole(role);
+    if (role === 'member') {
+      setLoginEmail('member@campus.internal');
+    } else {
+      setLoginEmail('admin@campus.internal');
+    }
+  };
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
@@ -44,11 +43,11 @@ export function AuthPage({ onAuthSuccess }) {
       return;
     }
 
-    const res = login(loginEmail, loginPassword);
+    const res = login(loginEmail, loginPassword, loginRole);
     if (res.success) {
       onAuthSuccess && onAuthSuccess(res.user);
     } else {
-      setError(res.error || 'Invalid email or password.');
+      setError(res.error || 'Invalid credentials.');
     }
   };
 
@@ -73,8 +72,7 @@ export function AuthPage({ onAuthSuccess }) {
       name: signupName,
       email: signupEmail,
       password: signupPassword,
-      role: selectedRole,
-      adminDomain: selectedRole === 'admin' ? selectedDomain : null,
+      role: signupRole,
       department: signupDept,
       organizationName: signupOrg
     });
@@ -86,9 +84,12 @@ export function AuthPage({ onAuthSuccess }) {
     }
   };
 
-  const handleQuickDemoLogin = (user) => {
-    login(user.email);
-    onAuthSuccess && onAuthSuccess(user);
+  const handleQuickDemoLogin = (role) => {
+    const email = role === 'admin' ? 'admin@campus.internal' : 'member@campus.internal';
+    const res = login(email, 'password123', role);
+    if (res.success) {
+      onAuthSuccess && onAuthSuccess(res.user);
+    }
   };
 
   return (
@@ -133,7 +134,7 @@ export function AuthPage({ onAuthSuccess }) {
           <span>Campus Pulse</span>
         </div>
         <p style={{ fontSize: '0.9rem', color: '#64748b', maxWidth: '440px', margin: '0 auto' }}>
-          Domain-Specific Organizational Problem Intelligence & Resolution Platform
+          Organizational Problem Intelligence & Resolution Platform
         </p>
       </div>
 
@@ -142,7 +143,7 @@ export function AuthPage({ onAuthSuccess }) {
         className="card"
         style={{
           width: '100%',
-          maxWidth: mode === 'signup' ? '560px' : '460px',
+          maxWidth: mode === 'signup' ? '540px' : '460px',
           background: '#ffffff',
           borderRadius: '20px',
           padding: '28px 24px',
@@ -222,10 +223,66 @@ export function AuthPage({ onAuthSuccess }) {
         )}
 
         {/* ============================================================== */}
-        {/* SIGN IN FORM                                                  */}
+        {/* SIGN IN FORM (SELECT ROLE WHILE SIGNING IN)                    */}
         {/* ============================================================== */}
         {mode === 'login' ? (
           <form onSubmit={handleLoginSubmit}>
+            {/* Role Selection right at sign-in */}
+            <div style={{ marginBottom: '18px' }}>
+              <label className="form-label-row" style={{ marginBottom: '8px' }}>
+                <span style={{ fontWeight: 700 }}>Select Role to Sign In *</span>
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                {/* Option 1: Member */}
+                <div
+                  onClick={() => handleRoleToggle('member')}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '12px',
+                    border: loginRole === 'member' ? '2px solid #2563eb' : '1.5px solid #e2e8f0',
+                    background: loginRole === 'member' ? '#eff6ff' : '#ffffff',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: loginRole === 'member' ? '#2563eb' : '#f1f5f9', color: loginRole === 'member' ? '#fff' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Users size={15} />
+                    </div>
+                    {loginRole === 'member' && <Check size={16} color="#2563eb" strokeWidth={2.5} />}
+                  </div>
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a' }}>Member</h4>
+                  <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px', lineHeight: 1.3 }}>
+                    Report & confirm campus issues
+                  </p>
+                </div>
+
+                {/* Option 2: Admin */}
+                <div
+                  onClick={() => handleRoleToggle('admin')}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '12px',
+                    border: loginRole === 'admin' ? '2px solid #7c3aed' : '1.5px solid #e2e8f0',
+                    background: loginRole === 'admin' ? '#f5f3ff' : '#ffffff',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: loginRole === 'admin' ? '#7c3aed' : '#f1f5f9', color: loginRole === 'admin' ? '#fff' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Shield size={15} />
+                    </div>
+                    {loginRole === 'admin' && <Check size={16} color="#7c3aed" strokeWidth={2.5} />}
+                  </div>
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a' }}>Administrator</h4>
+                  <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px', lineHeight: 1.3 }}>
+                    Manage, triage & resolve issues
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="form-group" style={{ marginBottom: '14px' }}>
               <label className="form-label-row">
                 <span>Email Address</span>
@@ -235,7 +292,7 @@ export function AuthPage({ onAuthSuccess }) {
                 <input
                   type="email"
                   className="input-text"
-                  placeholder="e.g. viraj.k@acmecorp.internal"
+                  placeholder="e.g. member@campus.internal"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required
@@ -279,89 +336,72 @@ export function AuthPage({ onAuthSuccess }) {
             <button
               type="submit"
               className="btn-primary-large"
-              style={{ padding: '12px', fontSize: '0.95rem', marginBottom: '20px' }}
+              style={{
+                padding: '12px',
+                fontSize: '0.95rem',
+                marginBottom: '20px',
+                backgroundColor: loginRole === 'admin' ? '#7c3aed' : '#1d4ed8'
+              }}
             >
-              <span>Sign In</span>
+              <span>Sign In as {loginRole === 'admin' ? 'Administrator' : 'Member'}</span>
               <ArrowRight size={17} />
             </button>
 
-            {/* Quick Demo Logins by Role & Domain */}
+            {/* Quick 1-Click Persona Sign-In */}
             <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
               <p style={{ fontSize: '0.78rem', color: '#64748b', textAlign: 'center', marginBottom: '10px', fontWeight: 600 }}>
-                ⚡ Test with preset personas & domain admins:
+                ⚡ 1-Click Fast Sign In:
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {users.map(u => {
-                  const isUser = u.role === 'user';
-                  const badgeColor = isUser ? '#1d4ed8' : '#7c3aed';
-                  const badgeBg = isUser ? '#eff6ff' : '#f5f3ff';
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoLogin('member')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #bfdbfe',
+                    background: '#eff6ff',
+                    cursor: 'pointer',
+                    fontSize: '0.78rem',
+                    color: '#1d4ed8',
+                    fontWeight: 600,
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Users size={14} />
+                  <span>Member (Viraj K.)</span>
+                </button>
 
-                  return (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => handleQuickDemoLogin(u)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0',
-                        background: '#f8fafc',
-                        cursor: 'pointer',
-                        fontSize: '0.8rem',
-                        color: '#0f172a',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.borderColor = '#93c5fd'}
-                      onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span
-                          style={{
-                            width: '26px',
-                            height: '26px',
-                            borderRadius: '50%',
-                            background: badgeBg,
-                            color: badgeColor,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 700,
-                            fontSize: '0.72rem'
-                          }}
-                        >
-                          {u.initials}
-                        </span>
-                        <div style={{ textAlign: 'left' }}>
-                          <span style={{ fontWeight: 600, display: 'block' }}>{u.name}</span>
-                          <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{u.roleLabel}</span>
-                        </div>
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          background: '#ffffff',
-                          border: '1px solid #e2e8f0',
-                          color: badgeColor
-                        }}
-                      >
-                        {u.role === 'user' ? 'User' : u.adminDomain ? `${u.adminDomain} Admin` : 'Admin'}
-                      </span>
-                    </button>
-                  );
-                })}
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoLogin('admin')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd6fe',
+                    background: '#f5f3ff',
+                    cursor: 'pointer',
+                    fontSize: '0.78rem',
+                    color: '#7c3aed',
+                    fontWeight: 600,
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Shield size={14} />
+                  <span>Admin (Sarah P.)</span>
+                </button>
               </div>
             </div>
           </form>
         ) : (
           /* ============================================================== */
-          /* SIGN UP FORM (USER vs DOMAIN-SPECIFIC ADMINISTRATOR)           */
+          /* CREATE ACCOUNT FORM (MEMBER vs ADMINISTRATOR)                  */
           /* ============================================================== */
           <form onSubmit={handleSignupSubmit}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '14px' }}>
@@ -391,7 +431,7 @@ export function AuthPage({ onAuthSuccess }) {
                   <input
                     type="email"
                     className="input-text"
-                    placeholder="e.g. john@organization.com"
+                    placeholder="e.g. john@campus.internal"
                     value={signupEmail}
                     onChange={(e) => setSignupEmail(e.target.value)}
                     required
@@ -424,7 +464,7 @@ export function AuthPage({ onAuthSuccess }) {
                 <input
                   type="text"
                   className="input-text"
-                  placeholder="e.g. Operations, IT, Engineering"
+                  placeholder="e.g. Engineering, Facilities"
                   value={signupDept}
                   onChange={(e) => setSignupDept(e.target.value)}
                 />
@@ -448,117 +488,61 @@ export function AuthPage({ onAuthSuccess }) {
               </div>
             </div>
 
-            {/* ROLE SELECTION: USER vs DOMAIN ADMINISTRATOR */}
+            {/* ROLE SELECTION: Exactly 2 Roles (Member vs Administrator) */}
             <div style={{ marginBottom: '18px' }}>
               <label className="form-label-row" style={{ marginBottom: '8px' }}>
-                <span>Select Account Type *</span>
+                <span style={{ fontWeight: 700 }}>Select Role for Account *</span>
               </label>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-                {/* Choice 1: General User */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                {/* Choice 1: Member */}
                 <div
-                  onClick={() => setSelectedRole('user')}
+                  onClick={() => setSignupRole('member')}
                   style={{
                     padding: '12px',
                     borderRadius: '12px',
-                    border: selectedRole === 'user' ? '2px solid #2563eb' : '1.5px solid #e2e8f0',
-                    background: selectedRole === 'user' ? '#eff6ff' : '#ffffff',
+                    border: signupRole === 'member' ? '2px solid #2563eb' : '1.5px solid #e2e8f0',
+                    background: signupRole === 'member' ? '#eff6ff' : '#ffffff',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: selectedRole === 'user' ? '#2563eb' : '#f1f5f9', color: selectedRole === 'user' ? '#fff' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: signupRole === 'member' ? '#2563eb' : '#f1f5f9', color: signupRole === 'member' ? '#fff' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Users size={16} />
                     </div>
-                    {selectedRole === 'user' && <Check size={16} color="#2563eb" strokeWidth={2.5} />}
+                    {signupRole === 'member' && <Check size={16} color="#2563eb" strokeWidth={2.5} />}
                   </div>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a' }}>General User</h4>
-                  <p style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
-                    Report problems, confirm existing issues, and verify resolution fixes.
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a' }}>Member</h4>
+                  <p style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px', lineHeight: 1.3 }}>
+                    Report problems, upvote/confirm existing issues, and track resolutions.
                   </p>
                 </div>
 
-                {/* Choice 2: Domain Administrator */}
+                {/* Choice 2: Administrator */}
                 <div
-                  onClick={() => setSelectedRole('admin')}
+                  onClick={() => setSignupRole('admin')}
                   style={{
                     padding: '12px',
                     borderRadius: '12px',
-                    border: selectedRole === 'admin' ? '2px solid #7c3aed' : '1.5px solid #e2e8f0',
-                    background: selectedRole === 'admin' ? '#f5f3ff' : '#ffffff',
+                    border: signupRole === 'admin' ? '2px solid #7c3aed' : '1.5px solid #e2e8f0',
+                    background: signupRole === 'admin' ? '#f5f3ff' : '#ffffff',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: selectedRole === 'admin' ? '#7c3aed' : '#f1f5f9', color: selectedRole === 'admin' ? '#fff' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: signupRole === 'admin' ? '#7c3aed' : '#f1f5f9', color: signupRole === 'admin' ? '#fff' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Shield size={16} />
                     </div>
-                    {selectedRole === 'admin' && <Check size={16} color="#7c3aed" strokeWidth={2.5} />}
+                    {signupRole === 'admin' && <Check size={16} color="#7c3aed" strokeWidth={2.5} />}
                   </div>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a' }}>Domain Administrator</h4>
-                  <p style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
-                    Authority over a specific domain: triage, update progress, resolve with proof.
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a' }}>Administrator</h4>
+                  <p style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px', lineHeight: 1.3 }}>
+                    Administrative authority: triage, assign, update progress, resolve with proof.
                   </p>
                 </div>
               </div>
-
-              {/* IF DOMAIN ADMINISTRATOR: SELECT ASSIGNED CATEGORY / DOMAIN */}
-              {selectedRole === 'admin' && (
-                <div
-                  style={{
-                    background: '#fbfbfe',
-                    border: '1.5px solid #ddd6fe',
-                    borderRadius: '12px',
-                    padding: '14px',
-                    animation: 'fadeIn 0.2s ease'
-                  }}
-                >
-                  <label className="form-label-row" style={{ marginBottom: '6px', color: '#5b21b6' }}>
-                    <span>Assigned Operational Domain *</span>
-                  </label>
-                  <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '10px' }}>
-                    Choose the category this administrator is responsible for resolving:
-                  </p>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {DOMAIN_OPTIONS.map(dom => {
-                      const Icon = dom.icon;
-                      const isSelected = selectedDomain === dom.id;
-
-                      return (
-                        <div
-                          key={dom.id}
-                          onClick={() => setSelectedDomain(dom.id)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            border: isSelected ? `2px solid ${dom.color}` : '1px solid #e5e7eb',
-                            background: isSelected ? '#ffffff' : '#f9fafb',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ width: '26px', height: '26px', borderRadius: '6px', background: `${dom.color}15`, color: dom.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <Icon size={15} />
-                            </div>
-                            <div>
-                              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111827' }}>{dom.label}</span>
-                              <span style={{ fontSize: '0.7rem', color: '#6b7280', display: 'block' }}>{dom.desc}</span>
-                            </div>
-                          </div>
-                          {isSelected && <Check size={16} color={dom.color} strokeWidth={2.5} />}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
 
             <button
@@ -567,10 +551,10 @@ export function AuthPage({ onAuthSuccess }) {
               style={{
                 padding: '12px',
                 fontSize: '0.95rem',
-                backgroundColor: selectedRole === 'admin' ? '#7c3aed' : '#1d4ed8'
+                backgroundColor: signupRole === 'admin' ? '#7c3aed' : '#1d4ed8'
               }}
             >
-              <span>Create Account as {selectedRole === 'admin' ? `${selectedDomain.toUpperCase()} Admin` : 'General User'}</span>
+              <span>Create Account as {signupRole === 'admin' ? 'Administrator' : 'Member'}</span>
               <ArrowRight size={17} />
             </button>
           </form>
@@ -579,7 +563,7 @@ export function AuthPage({ onAuthSuccess }) {
 
       {/* Footer Info */}
       <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '0.78rem', color: '#64748b' }}>
-        <span>Campus Pulse • Domain-Specific Operational Authority</span>
+        <span>Campus Pulse • Problem Intelligence & Resolution Platform</span>
       </div>
     </div>
   );

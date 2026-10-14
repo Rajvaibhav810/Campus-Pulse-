@@ -10,56 +10,26 @@ function extractInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-// Initial seed users tailored for General Users and Domain Administrators
+// Exactly two roles supported across the platform: Member and Admin
 export const SEED_USERS = [
   {
-    id: 'user-viraj',
+    id: 'user-vk',
     name: 'Viraj K.',
     initials: 'VK',
-    role: 'user', // 'user' | 'admin'
-    roleLabel: 'General User',
-    email: 'viraj.k@acmecorp.internal',
+    role: 'member', // 'member' | 'admin'
+    roleLabel: 'Campus Member',
+    email: 'member@campus.internal',
     department: 'Engineering & Product'
   },
   {
-    id: 'admin-water',
-    name: 'David Ortiz',
-    initials: 'DO',
-    role: 'admin',
-    adminDomain: 'water',
-    roleLabel: 'Water & Plumbing Administrator',
-    email: 'plumbing.admin@acmecorp.internal',
-    department: 'Water & Utilities'
-  },
-  {
-    id: 'admin-wifi',
-    name: 'Elena Rostova',
-    initials: 'ER',
-    role: 'admin',
-    adminDomain: 'wifi',
-    roleLabel: 'IT & Network Administrator',
-    email: 'network.admin@acmecorp.internal',
-    department: 'IT Network Infrastructure'
-  },
-  {
-    id: 'admin-facilities',
-    name: 'Alex Martinez',
-    initials: 'AM',
-    role: 'admin',
-    adminDomain: 'facilities',
-    roleLabel: 'Facilities & HVAC Administrator',
-    email: 'facilities.admin@acmecorp.internal',
-    department: 'Building Operations'
-  },
-  {
-    id: 'admin-super',
+    id: 'user-sarah',
     name: 'Sarah Patel',
     initials: 'SP',
     role: 'admin',
     adminDomain: 'all',
-    roleLabel: 'Super Administrator / Operations Director',
-    email: 'sarah.p@acmecorp.internal',
-    department: 'Executive Operations'
+    roleLabel: 'Campus Administrator',
+    email: 'admin@campus.internal',
+    department: 'Operations & Facilities'
   }
 ];
 
@@ -90,32 +60,70 @@ export function AuthProvider({ children }) {
     storageService.saveUsers(users);
   }, [users]);
 
-  // Sign In function
-  const login = (email) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const found = users.find(u => (u.email || '').toLowerCase() === normalizedEmail);
+  // Sign In function: enforces chosen role (Member or Admin)
+  const login = (email, password = '', chosenRole = null) => {
+    const normalizedEmail = (email || '').trim().toLowerCase();
+    
+    // Look for matching user by email
+    let found = users.find(u => (u.email || '').toLowerCase() === normalizedEmail);
+
+    if (!found && normalizedEmail) {
+      found = users.find(u => u.name.toLowerCase().includes(normalizedEmail.split('@')[0]));
+    }
+
+    // If user specified role on sign in (member vs admin)
+    if (chosenRole) {
+      if (found) {
+        // Update user to chosen role if different
+        const updated = {
+          ...found,
+          role: chosenRole,
+          roleLabel: chosenRole === 'admin' ? 'Campus Administrator' : 'Campus Member'
+        };
+        setCurrentUser(updated);
+        setIsAuthenticated(true);
+        storageService.saveCurrentUser(updated);
+        return { success: true, user: updated };
+      }
+
+      // If user typed a new email with selected role, create session
+      if (normalizedEmail) {
+        const rawName = normalizedEmail.split('@')[0].replace(/[._-]/g, ' ');
+        const formattedName = rawName.replace(/\b\w/g, l => l.toUpperCase());
+        const newUser = {
+          id: `user-${Date.now()}`,
+          name: formattedName || (chosenRole === 'admin' ? 'Admin User' : 'Campus Member'),
+          initials: extractInitials(formattedName || 'User'),
+          email: normalizedEmail,
+          role: chosenRole,
+          roleLabel: chosenRole === 'admin' ? 'Campus Administrator' : 'Campus Member',
+          department: chosenRole === 'admin' ? 'Operations & Administration' : 'General Campus',
+          createdAt: new Date().toISOString()
+        };
+        const updatedUsers = [...users, newUser];
+        setUsers(updatedUsers);
+        setCurrentUser(newUser);
+        setIsAuthenticated(true);
+        storageService.saveCurrentUser(newUser);
+        return { success: true, user: newUser };
+      }
+    }
 
     if (found) {
       setCurrentUser(found);
       setIsAuthenticated(true);
+      storageService.saveCurrentUser(found);
       return { success: true, user: found };
-    }
-
-    const matchByName = users.find(u => u.name.toLowerCase().includes(normalizedEmail.split('@')[0]));
-    if (matchByName) {
-      setCurrentUser(matchByName);
-      setIsAuthenticated(true);
-      return { success: true, user: matchByName };
     }
 
     return {
       success: false,
-      error: 'Account not found. Please verify your email or sign up below.'
+      error: 'Account not found. Please verify your email or create an account.'
     };
   };
 
-  // Sign Up with Role-Based Access (User vs Domain Administrator)
-  const signup = ({ name, email, role = 'user', adminDomain = 'all', department, organizationName }) => {
+  // Sign Up with chosen role: Member or Admin
+  const signup = ({ name, email, role = 'member', department, organizationName }) => {
     const normalizedEmail = email.trim().toLowerCase();
     const existing = users.find(u => (u.email || '').toLowerCase() === normalizedEmail);
 
@@ -126,28 +134,18 @@ export function AuthProvider({ children }) {
       };
     }
 
-    let roleLabel = 'General User';
-    if (role === 'admin') {
-      const domainTitles = {
-        water: 'Water & Plumbing Administrator',
-        wifi: 'IT & Network Administrator',
-        cleanliness: 'Cleanliness & Sanitation Administrator',
-        facilities: 'Facilities & HVAC Administrator',
-        safety: 'Safety & Security Administrator',
-        all: 'Super Administrator / Operations Director'
-      };
-      roleLabel = domainTitles[adminDomain] || 'Domain Administrator';
-    }
+    const assignedRole = role === 'admin' ? 'admin' : 'member';
+    const roleLabel = assignedRole === 'admin' ? 'Campus Administrator' : 'Campus Member';
 
     const newUser = {
       id: `user-${Date.now()}`,
       name: name.trim(),
       initials: extractInitials(name),
       email: normalizedEmail,
-      role: role, // 'user' | 'admin'
-      adminDomain: role === 'admin' ? adminDomain : null,
+      role: assignedRole,
+      adminDomain: 'all',
       roleLabel: roleLabel,
-      department: department?.trim() || (role === 'admin' ? 'Operations Department' : 'General Department'),
+      department: department?.trim() || (assignedRole === 'admin' ? 'Operations Leadership' : 'General Campus'),
       createdAt: new Date().toISOString()
     };
 
@@ -155,6 +153,7 @@ export function AuthProvider({ children }) {
     setUsers(updatedUsers);
     setCurrentUser(newUser);
     setIsAuthenticated(true);
+    storageService.saveCurrentUser(newUser);
 
     if (organizationName?.trim() && organizationName !== organization.name) {
       const updatedOrg = { ...organization, name: organizationName.trim() };
@@ -172,22 +171,14 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('cp_current_user_v1');
   };
 
-  const switchUser = (userId) => {
-    const found = users.find(u => u.id === userId);
-    if (found) {
-      setCurrentUser(found);
-      setIsAuthenticated(true);
-      storageService.saveCurrentUser(found);
-    }
-  };
-
   const updateOrganization = (newOrg) => {
     setOrganization(newOrg);
     storageService.saveOrganization(newOrg);
   };
 
-  const isUser = currentUser?.role === 'user';
   const isAdmin = currentUser?.role === 'admin';
+  const isMember = currentUser?.role === 'member' || currentUser?.role === 'user';
+  const isUser = isMember;
   const adminDomain = currentUser?.adminDomain || 'all';
 
   return (
@@ -199,9 +190,9 @@ export function AuthProvider({ children }) {
       signup,
       logout,
       organization,
-      switchUser,
       updateOrganization,
       isUser,
+      isMember,
       isAdmin,
       adminDomain
     }}>

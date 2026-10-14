@@ -1,26 +1,24 @@
 import React, { useState } from 'react';
-import { Megaphone, Bell, Shield, ChevronDown, PlusCircle, LayoutDashboard, ListFilter, ClipboardCheck, Settings, Zap, Database, LogOut } from 'lucide-react';
+import { Megaphone, Bell, Shield, Zap, Database, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useIssues } from '../../context/IssueContext';
-import { RoleSwitcherModal } from './RoleSwitcherModal';
 
 export function Navbar({ activePage, setActivePage }) {
-  const { currentUser, organization, isMember, isHandler, isAdmin, logout } = useAuth();
+  const { currentUser, organization, isAdmin, logout } = useAuth();
   const { backendStatus } = useIssues();
-  const [showRoleModal, setShowRoleModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
   return (
     <>
       <header className="top-navbar">
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <div className="nav-brand" onClick={() => setActivePage('home')}>
+          <div className="nav-brand" onClick={() => setActivePage(isAdmin ? 'admin_portal' : 'home')}>
             <Megaphone size={22} strokeWidth={2.4} />
             <span>Campus Pulse</span>
           </div>
 
           <nav className="desktop-nav-links">
-            {/* General User Navigation (Reporters & Members) */}
+            {/* General Member Navigation */}
             {!isAdmin && (
               <>
                 <button
@@ -50,22 +48,14 @@ export function Navbar({ activePage, setActivePage }) {
               </>
             )}
 
-            {/* Domain Administrator Navigation (Operational Command Center) */}
+            {/* Administrator Navigation */}
             {isAdmin && (
-              <>
-                <button
-                  className={`nav-link ${activePage === 'admin_portal' ? 'active' : ''}`}
-                  onClick={() => setActivePage('admin_portal')}
-                >
-                  Domain Command Center
-                </button>
-                <button
-                  className={`nav-link ${activePage === 'analytics' ? 'active' : ''}`}
-                  onClick={() => setActivePage('analytics')}
-                >
-                  Domain Analytics & Hotspots
-                </button>
-              </>
+              <button
+                className={`nav-link ${activePage === 'admin_portal' ? 'active' : ''}`}
+                onClick={() => setActivePage('admin_portal')}
+              >
+                Admin Command Center
+              </button>
             )}
 
             <button
@@ -123,16 +113,26 @@ export function Navbar({ activePage, setActivePage }) {
             </span>
           )}
 
-          {/* Role badge switcher */}
-          <button
-            className="role-badge-btn"
-            onClick={() => setShowRoleModal(true)}
-            title="Click to switch between Member, Staff, or Admin view"
+          {/* Static Role indicator badge (No switching option) */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 12px',
+              borderRadius: '9999px',
+              fontSize: '0.74rem',
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+              background: isAdmin ? '#f5f3ff' : '#eff6ff',
+              color: isAdmin ? '#7c3aed' : '#1d4ed8',
+              border: `1.5px solid ${isAdmin ? '#ddd6fe' : '#bfdbfe'}`
+            }}
+            title={`Active Role: ${isAdmin ? 'Campus Administrator' : 'Campus Member'}`}
           >
             <Shield size={13} />
-            <span>Role: {currentUser.role.toUpperCase()}</span>
-            <ChevronDown size={12} />
-          </button>
+            <span>{isAdmin ? 'ADMIN' : 'MEMBER'}</span>
+          </div>
 
           {/* Notification bell */}
           <button 
@@ -144,13 +144,13 @@ export function Navbar({ activePage, setActivePage }) {
             <span className="badge-dot"></span>
           </button>
 
-          {/* User Avatar Initial */}
+          {/* User Avatar Initial (navigates to settings/profile) */}
           <button
             className="user-avatar-bubble"
-            onClick={() => setShowRoleModal(true)}
-            title={`Active: ${currentUser.name} (${currentUser.roleLabel}). Click to switch.`}
+            onClick={() => setActivePage('settings')}
+            title={`Active: ${currentUser?.name} (${isAdmin ? 'Campus Administrator' : 'Campus Member'}). Click to view Profile.`}
           >
-            {currentUser.initials}
+            {currentUser?.initials || 'U'}
           </button>
 
           {/* Sign Out Button */}
@@ -188,11 +188,11 @@ export function Navbar({ activePage, setActivePage }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
             <div style={{ padding: '8px', background: '#f8fafc', borderRadius: '8px' }}>
               <p style={{ fontWeight: 600, color: '#0f172a' }}>Water cooler in Block B updated</p>
-              <p style={{ color: '#64748b', fontSize: '0.72rem' }}>Alex Martinez began work 25m ago</p>
+              <p style={{ color: '#64748b', fontSize: '0.72rem' }}>Administrator marked in progress</p>
             </div>
             <div style={{ padding: '8px', background: '#f8fafc', borderRadius: '8px' }}>
               <p style={{ fontWeight: 600, color: '#0f172a' }}>Wi-Fi drop in Lab 3 acknowledged</p>
-              <p style={{ color: '#64748b', fontSize: '0.72rem' }}>23 people have confirmed this issue</p>
+              <p style={{ color: '#64748b', fontSize: '0.72rem' }}>23 members have confirmed this issue</p>
             </div>
           </div>
           <button
@@ -203,12 +203,6 @@ export function Navbar({ activePage, setActivePage }) {
           </button>
         </div>
       )}
-
-      {/* Role Switcher Modal */}
-      <RoleSwitcherModal
-        isOpen={showRoleModal}
-        onClose={() => setShowRoleModal(false)}
-      />
     </>
   );
 }

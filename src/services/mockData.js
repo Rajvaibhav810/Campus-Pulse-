@@ -41,28 +41,20 @@ export const INITIAL_USERS = [
     id: 'user-vk',
     name: 'Viraj K.',
     initials: 'VK',
-    role: 'member', // 'member' | 'handler' | 'admin'
-    roleLabel: 'General Member',
-    email: 'viraj.k@acmecorp.internal',
+    role: 'member', // 'member' | 'admin'
+    roleLabel: 'Campus Member',
+    email: 'member@campus.internal',
     department: 'Engineering & Product'
-  },
-  {
-    id: 'user-alex',
-    name: 'Alex Martinez',
-    initials: 'AM',
-    role: 'handler',
-    roleLabel: 'Campus Operations Specialist',
-    email: 'operations@acmecorp.internal',
-    department: 'Facilities & Infrastructure'
   },
   {
     id: 'user-sarah',
     name: 'Sarah Patel',
     initials: 'SP',
     role: 'admin',
-    roleLabel: 'Operations & Facilities Director',
-    email: 'sarah.p@acmecorp.internal',
-    department: 'Operations Leadership'
+    adminDomain: 'all',
+    roleLabel: 'Campus Administrator',
+    email: 'admin@campus.internal',
+    department: 'Operations & Facilities'
   }
 ];
 

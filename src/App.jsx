@@ -10,7 +10,6 @@ import { BrowseIssuesPage } from './pages/BrowseIssuesPage';
 import { IssueDetailPage } from './pages/IssueDetailPage';
 import { MyReportsPage } from './pages/MyReportsPage';
 import { AdminPortalPage } from './pages/AdminPortalPage';
-import { ManagementAnalyticsPage } from './pages/ManagementAnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
 
 function AppContent() {
@@ -22,7 +21,7 @@ function AppContent() {
   useEffect(() => {
     if (currentUser?.role === 'admin' && (activePage === 'home' || activePage === 'my_reports' || activePage === 'report')) {
       setActivePage('admin_portal');
-    } else if (currentUser?.role === 'user' && activePage === 'admin_portal') {
+    } else if ((currentUser?.role === 'member' || currentUser?.role === 'user') && activePage === 'admin_portal') {
       setActivePage('home');
     }
   }, [currentUser?.id, currentUser?.role]);
@@ -95,13 +94,6 @@ function AppContent() {
       case 'admin_portal':
         return (
           <AdminPortalPage
-            onSelectIssue={handleSelectIssue}
-          />
-        );
-
-      case 'analytics':
-        return (
-          <ManagementAnalyticsPage
             onSelectIssue={handleSelectIssue}
           />
         );

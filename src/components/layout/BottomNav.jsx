@@ -1,5 +1,4 @@
-import React from 'react';
-import { Home, ListChecks, User, Shield, BarChart3 } from 'lucide-react';
+import { Home, ListChecks, User, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export function BottomNav({ activePage, setActivePage }) {
@@ -18,15 +17,6 @@ export function BottomNav({ activePage, setActivePage }) {
           <span>Domain Command</span>
         </button>
 
-        <button
-          className={`bottom-nav-item ${activePage === 'analytics' ? 'active' : ''}`}
-          onClick={() => setActivePage('analytics')}
-        >
-          <div className="nav-icon-box">
-            <BarChart3 size={19} />
-          </div>
-          <span>Analytics</span>
-        </button>
 
         <button
           className={`bottom-nav-item ${activePage === 'settings' ? 'active' : ''}`}

@@ -288,7 +288,9 @@ export function IssueDetailPage({ issueId, onBack, onNavigate }) {
                 >
                   <option value="">Unassigned</option>
                   {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.role === 'admin' ? 'Admin' : 'Member'})
+                    </option>
                   ))}
                 </select>
               </div>
