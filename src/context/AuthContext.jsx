@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
+import { supabaseClient } from '../services/supabaseClient';
 
 const AuthContext = createContext();
 
@@ -16,9 +17,10 @@ export const SEED_USERS = [
     id: 'user-vk',
     name: 'Viraj K.',
     initials: 'VK',
-    role: 'member', // 'member' | 'admin'
+    role: 'member',
     roleLabel: 'Campus Member',
     email: 'member@campus.internal',
+    password: 'password123',
     department: 'Engineering & Product'
   },
   {
@@ -29,6 +31,7 @@ export const SEED_USERS = [
     adminDomain: 'all',
     roleLabel: 'Campus Administrator',
     email: 'admin@campus.internal',
+    password: 'password123',
     department: 'Operations & Facilities'
   }
 ];
@@ -36,7 +39,16 @@ export const SEED_USERS = [
 export function AuthProvider({ children }) {
   const [users, setUsers] = useState(() => {
     const saved = storageService.loadUsers();
-    return saved && saved.length > 0 ? saved : SEED_USERS;
+    if (saved && saved.length > 0) {
+      // Ensure all users have password field populated from prior demo runs
+      return saved.map(u => {
+        if (!u.password) {
+          return { ...u, password: 'password123' };
+        }
+        return u;
+      });
+    }
+    return SEED_USERS;
   });
 
   const [currentUser, setCurrentUser] = useState(() => {
@@ -60,73 +72,128 @@ export function AuthProvider({ children }) {
     storageService.saveUsers(users);
   }, [users]);
 
-  // Sign In function: enforces chosen role (Member or Admin)
+  // Sync organization and profiles from Supabase on mount
+  useEffect(() => {
+    async function loadBackendData() {
+      if (supabaseClient.isConfigured) {
+        // Sync organization
+        const remoteOrg = await supabaseClient.getOrganization();
+        if (remoteOrg) {
+          setOrganization(prev => ({
+            ...prev,
+            ...remoteOrg,
+            emergencyHotline: remoteOrg.emergencyHotline || prev.emergencyHotline
+          }));
+        }
+
+        // Sync profiles from Supabase if any exist
+        const remoteProfiles = await supabaseClient.getProfiles();
+        if (remoteProfiles && remoteProfiles.length > 0) {
+          setUsers(prevUsers => {
+            const merged = [...prevUsers];
+            remoteProfiles.forEach(p => {
+              const exists = merged.some(u => u.id === p.id || (u.email && u.email === p.id));
+              if (!exists) {
+                merged.push({
+                  id: p.id,
+                  name: p.full_name || 'Member',
+                  initials: p.initials || extractInitials(p.full_name),
+                  role: p.role || 'member',
+                  roleLabel: p.role_label || 'Campus Member',
+                  email: `${p.id}@campus.internal`,
+                  password: 'password123',
+                  department: p.department || 'General Campus',
+                  createdAt: p.created_at || new Date().toISOString()
+                });
+              }
+            });
+            return merged;
+          });
+        }
+      }
+    }
+    loadBackendData();
+  }, []);
+
+  // Secure Sign In function: enforces valid user, verified password, and role authorization
   const login = (email, password = '', chosenRole = null) => {
     const normalizedEmail = (email || '').trim().toLowerCase();
     
+    if (!normalizedEmail) {
+      return {
+        success: false,
+        error: 'Please enter your email address.'
+      };
+    }
+
+    if (!password || !password.trim()) {
+      return {
+        success: false,
+        error: 'Please enter your password.'
+      };
+    }
+
     // Look for matching user by email
-    let found = users.find(u => (u.email || '').toLowerCase() === normalizedEmail);
+    const found = users.find(u => (u.email || '').toLowerCase() === normalizedEmail);
 
-    if (!found && normalizedEmail) {
-      found = users.find(u => u.name.toLowerCase().includes(normalizedEmail.split('@')[0]));
+    if (!found) {
+      return {
+        success: false,
+        error: 'No account found with this email. Please check your spelling or create an account.'
+      };
     }
 
-    // If user specified role on sign in (member vs admin)
-    if (chosenRole) {
-      if (found) {
-        // Update user to chosen role if different
-        const updated = {
-          ...found,
-          role: chosenRole,
-          roleLabel: chosenRole === 'admin' ? 'Campus Administrator' : 'Campus Member'
-        };
-        setCurrentUser(updated);
-        setIsAuthenticated(true);
-        storageService.saveCurrentUser(updated);
-        return { success: true, user: updated };
-      }
+    // Verify password
+    const enteredPassword = password.trim();
+    const storedPassword = found.password || 'password123';
 
-      // If user typed a new email with selected role, create session
-      if (normalizedEmail) {
-        const rawName = normalizedEmail.split('@')[0].replace(/[._-]/g, ' ');
-        const formattedName = rawName.replace(/\b\w/g, l => l.toUpperCase());
-        const newUser = {
-          id: `user-${Date.now()}`,
-          name: formattedName || (chosenRole === 'admin' ? 'Admin User' : 'Campus Member'),
-          initials: extractInitials(formattedName || 'User'),
-          email: normalizedEmail,
-          role: chosenRole,
-          roleLabel: chosenRole === 'admin' ? 'Campus Administrator' : 'Campus Member',
-          department: chosenRole === 'admin' ? 'Operations & Administration' : 'General Campus',
-          createdAt: new Date().toISOString()
-        };
-        const updatedUsers = [...users, newUser];
-        setUsers(updatedUsers);
-        setCurrentUser(newUser);
-        setIsAuthenticated(true);
-        storageService.saveCurrentUser(newUser);
-        return { success: true, user: newUser };
-      }
+    if (enteredPassword !== storedPassword) {
+      return {
+        success: false,
+        error: 'Incorrect password. Please verify your password and try again.'
+      };
     }
 
-    if (found) {
-      setCurrentUser(found);
-      setIsAuthenticated(true);
-      storageService.saveCurrentUser(found);
-      return { success: true, user: found };
+    // Verify role authorization
+    if (chosenRole === 'admin' && found.role !== 'admin') {
+      return {
+        success: false,
+        error: 'Access denied: This account is registered as a Campus Member and does not possess Administrator privileges. Please sign in as a Member.'
+      };
     }
 
-    return {
-      success: false,
-      error: 'Account not found. Please verify your email or create an account.'
-    };
+    // User authenticated successfully
+    setCurrentUser(found);
+    setIsAuthenticated(true);
+    storageService.saveCurrentUser(found);
+    return { success: true, user: found };
   };
 
   // Sign Up with chosen role: Member or Admin
-  const signup = ({ name, email, role = 'member', department, organizationName }) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const existing = users.find(u => (u.email || '').toLowerCase() === normalizedEmail);
+  const signup = ({ name, email, password, role = 'member', department, organizationName }) => {
+    if (!name || !name.trim()) {
+      return {
+        success: false,
+        error: 'Please enter your full name.'
+      };
+    }
 
+    const normalizedEmail = (email || '').trim().toLowerCase();
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      return {
+        success: false,
+        error: 'Please provide a valid email address.'
+      };
+    }
+
+    if (!password || password.trim().length < 6) {
+      return {
+        success: false,
+        error: 'Password must be at least 6 characters long.'
+      };
+    }
+
+    const existing = users.find(u => (u.email || '').toLowerCase() === normalizedEmail);
     if (existing) {
       return {
         success: false,
@@ -142,6 +209,7 @@ export function AuthProvider({ children }) {
       name: name.trim(),
       initials: extractInitials(name),
       email: normalizedEmail,
+      password: password.trim(),
       role: assignedRole,
       adminDomain: 'all',
       roleLabel: roleLabel,
@@ -154,11 +222,20 @@ export function AuthProvider({ children }) {
     setCurrentUser(newUser);
     setIsAuthenticated(true);
     storageService.saveCurrentUser(newUser);
+    storageService.saveUsers(updatedUsers);
+
+    // Sync profile to Supabase if available
+    if (supabaseClient.isConfigured) {
+      supabaseClient.saveProfile(newUser);
+    }
 
     if (organizationName?.trim() && organizationName !== organization.name) {
       const updatedOrg = { ...organization, name: organizationName.trim() };
       setOrganization(updatedOrg);
       storageService.saveOrganization(updatedOrg);
+      if (supabaseClient.isConfigured) {
+        supabaseClient.updateOrganization(updatedOrg);
+      }
     }
 
     return { success: true, user: newUser };
@@ -174,6 +251,9 @@ export function AuthProvider({ children }) {
   const updateOrganization = (newOrg) => {
     setOrganization(newOrg);
     storageService.saveOrganization(newOrg);
+    if (supabaseClient.isConfigured) {
+      supabaseClient.updateOrganization(newOrg);
+    }
   };
 
   const isAdmin = currentUser?.role === 'admin';
@@ -185,15 +265,15 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider value={{
       currentUser,
       users,
+      organization,
       isAuthenticated,
       login,
       signup,
       logout,
-      organization,
       updateOrganization,
-      isUser,
-      isMember,
       isAdmin,
+      isMember,
+      isUser,
       adminDomain
     }}>
       {children}

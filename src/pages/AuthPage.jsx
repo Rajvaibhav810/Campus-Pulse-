@@ -21,6 +21,7 @@ export function AuthPage({ onAuthSuccess }) {
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [signupOrg, setSignupOrg] = useState(organization?.name || 'Acme Corp');
   const [signupDept, setSignupDept] = useState('');
   const [signupRole, setSignupRole] = useState('member'); // 'member' | 'admin'
@@ -40,6 +41,11 @@ export function AuthPage({ onAuthSuccess }) {
 
     if (!loginEmail.trim()) {
       setError('Please enter your email address.');
+      return;
+    }
+
+    if (!loginPassword.trim()) {
+      setError('Please enter your password.');
       return;
     }
 
@@ -63,8 +69,12 @@ export function AuthPage({ onAuthSuccess }) {
       setError('Please provide a valid email address.');
       return;
     }
-    if (signupPassword.length < 4) {
-      setError('Password should be at least 4 characters for this demo.');
+    if (signupPassword.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+    if (signupPassword !== signupConfirmPassword) {
+      setError('Passwords do not match. Please re-enter your password.');
       return;
     }
 
@@ -303,7 +313,7 @@ export function AuthPage({ onAuthSuccess }) {
             <div className="form-group" style={{ marginBottom: '18px' }}>
               <div className="form-label-row">
                 <span>Password</span>
-                <span style={{ fontSize: '0.75rem', color: '#1d4ed8' }}>Demo mode: any password</span>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Default: <strong>password123</strong></span>
               </div>
               <div className="input-with-icon" style={{ position: 'relative' }}>
                 <Lock size={16} />
@@ -313,6 +323,7 @@ export function AuthPage({ onAuthSuccess }) {
                   placeholder="Enter your password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
+                  required
                 />
                 <button
                   type="button"
@@ -471,20 +482,40 @@ export function AuthPage({ onAuthSuccess }) {
               </div>
             </div>
 
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label className="form-label-row">
-                <span>Password *</span>
-              </label>
-              <div className="input-with-icon">
-                <Lock size={16} />
-                <input
-                  type="password"
-                  className="input-text"
-                  placeholder="Create a password"
-                  value={signupPassword}
-                  onChange={(e) => setSignupPassword(e.target.value)}
-                  required
-                />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <label className="form-label-row">
+                  <span>Password *</span>
+                  <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Min 6 chars</span>
+                </label>
+                <div className="input-with-icon">
+                  <Lock size={16} />
+                  <input
+                    type="password"
+                    className="input-text"
+                    placeholder="Create a password"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label-row">
+                  <span>Confirm Password *</span>
+                </label>
+                <div className="input-with-icon">
+                  <Lock size={16} />
+                  <input
+                    type="password"
+                    className="input-text"
+                    placeholder="Confirm password"
+                    value={signupConfirmPassword}
+                    onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
             </div>
 

@@ -153,6 +153,15 @@ create policy "Allow insert issues" on public.issues for insert to anon, authent
 drop policy if exists "Allow update issues" on public.issues;
 create policy "Allow update issues" on public.issues for update to anon, authenticated using (true) with check (true);
 
+drop policy if exists "Allow delete issues" on public.issues;
+create policy "Allow delete issues" on public.issues for delete to anon, authenticated using (true);
+
+drop policy if exists "Allow manage profiles" on public.profiles;
+create policy "Allow manage profiles" on public.profiles for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists "Allow manage organizations" on public.organizations;
+create policy "Allow manage organizations" on public.organizations for all to anon, authenticated using (true) with check (true);
+
 drop policy if exists "Allow manage confirmations" on public.issue_confirmations;
 create policy "Allow manage confirmations" on public.issue_confirmations for all to anon, authenticated using (true) with check (true);
 

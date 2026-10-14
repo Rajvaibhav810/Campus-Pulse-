@@ -192,6 +192,11 @@ export function IssueProvider({ children }) {
         history: [...(issue.history || []), historyEntry]
       };
     }));
+
+    // Sync to Supabase in background
+    if (backendStatus === 'connected') {
+      supabaseClient.assignIssue(issueId, handlerUser, note, currentUser.name);
+    }
   };
 
   // Mark issue resolved with proof & note
@@ -278,8 +283,27 @@ export function IssueProvider({ children }) {
       }
     }));
 
-    if (backendStatus === 'connected' && !isFixed) {
-      supabaseClient.updateStatus(issueId, 'reopened', feedbackText || 'Reopened by member', currentUser.name);
+    if (backendStatus === 'connected') {
+      supabaseClient.verifyResolution(issueId, isFixed, feedbackText, currentUser.name);
+    }
+  };
+
+  // Delete an issue (with Supabase sync)
+  const deleteIssue = (issueId) => {
+    setRawIssues(prev => prev.filter(issue => issue.id !== issueId));
+    if (backendStatus === 'connected') {
+      supabaseClient.deleteIssue(issueId);
+    }
+  };
+
+  // Re-fetch issues from Supabase
+  const refreshIssues = async () => {
+    if (backendStatus === 'connected' || supabaseClient.isConfigured) {
+      const remote = await supabaseClient.getIssues();
+      if (remote) {
+        setRawIssues(remote);
+        storageService.saveIssues(remote);
+      }
     }
   };
 
@@ -296,6 +320,8 @@ export function IssueProvider({ children }) {
       assignIssue,
       resolveIssue,
       verifyResolution,
+      deleteIssue,
+      refreshIssues,
       getIssueById,
       resetData: () => {
         storageService.resetToDefaults();
